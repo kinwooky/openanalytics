@@ -57,6 +57,7 @@ ENV NEXT_PUBLIC_COLLECTOR_URL=${NEXT_PUBLIC_COLLECTOR_URL}
 # during its own build would be a poor joke.
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max-old-space-size=768
 
 # `pnpm --filter @openanalytics/web build` runs the workspace's `prebuild`
 # first, which compiles the contracts package the dashboard imports.
