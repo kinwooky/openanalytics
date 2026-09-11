@@ -26,12 +26,23 @@ jobs:
           git pull --ff-only origin main
 
           cd infra/selfhost
+          export COMPOSE_PARALLEL_LIMIT=1
           git_commit="$(git -C ../.. rev-parse HEAD)"
           sed -i "s/^OA_GIT_COMMIT=.*/OA_GIT_COMMIT=$git_commit/" .env
 
           docker compose config --quiet
           docker compose up -d --build --remove-orphans
 
-          docker compose exec -T api node -e \
-            "fetch('http://127.0.0.1:8082/health').then(async r => { if (!r.ok) process.exit(1); const o = await r.json(); console.log(o.commit, o.status); })"
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T api node -e \
+              "fetch('http://127.0.0.1:8082/health').then(async r => { if (!r.ok) process.exit(1); const o = await r.json(); console.log(o.commit, o.status); }).catch(() => process.exit(1))"; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo 'api health check timed out' >&2
+              docker compose logs --tail=100 api migrate
+              exit 1
+            fi
+            sleep 2
+          done
           docker compose ps
