@@ -30,6 +30,12 @@ jobs:
           git_commit="$(git -C ../.. rev-parse HEAD)"
           sed -i "s/^OA_GIT_COMMIT=.*/OA_GIT_COMMIT=$git_commit/" .env
 
+          mem_kb="$(awk '/MemTotal:/ {print $2}' /proc/meminfo)"
+          if [ "$mem_kb" -lt 3500000 ]; then
+            echo "OpenAnalytics self-host deploy needs about 4 GB RAM; found $((mem_kb / 1024)) MB" >&2
+            exit 1
+          fi
+
           docker compose config --quiet
           for service in clickhouse valkey-queue valkey-realtime migrate tracker-build gateway api collector worker realtime web; do
             docker compose build "$service"
