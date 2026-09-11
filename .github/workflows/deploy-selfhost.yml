@@ -1,0 +1,37 @@
+name: Deploy self-hosted OpenAnalytics
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: openanalytics-selfhost-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, openanalytics-vm]
+
+    steps:
+      - name: Pull and rebuild on VM
+        run: |
+          set -euo pipefail
+
+          repo=/srv/openanalytics
+          cd "$repo"
+          git pull --ff-only origin main
+
+          cd infra/selfhost
+          git_commit="$(git -C ../.. rev-parse HEAD)"
+          sed -i "s/^OA_GIT_COMMIT=.*/OA_GIT_COMMIT=$git_commit/" .env
+
+          docker compose config --quiet
+          docker compose up -d --build --remove-orphans
+
+          docker compose exec -T api node -e \
+            "fetch('http://127.0.0.1:8082/health').then(async r => { if (!r.ok) process.exit(1); const o = await r.json(); console.log(o.commit, o.status); })"
+          docker compose ps
