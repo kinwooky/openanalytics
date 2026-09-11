@@ -31,7 +31,9 @@ jobs:
           sed -i "s/^OA_GIT_COMMIT=.*/OA_GIT_COMMIT=$git_commit/" .env
 
           docker compose config --quiet
-          docker compose build
+          for service in clickhouse valkey-queue valkey-realtime migrate tracker-build gateway api collector worker realtime web; do
+            docker compose build "$service"
+          done
           docker compose up -d --remove-orphans
 
           for attempt in $(seq 1 60); do
